@@ -1,16 +1,43 @@
+#!/usr/bin/env python3
+import os
 import requests
 import json
 from datetime import datetime
 from urllib.parse import urlparse
 import sys
 import re
-import os
-
-SAVE_PATH = "/sdcard/rkdyiptv"
-os.makedirs(SAVE_PATH, exist_ok=True)
 from typing import Dict, Tuple, Optional, Any, List
 
+# ----------------------------
+# Save path configuration
+# ----------------------------
+SAVE_PATH = "/sdcard/rkdyiptv"
+ALT_SAVE_PATH = "/storage/emulated/0/rkdyiptv"
 
+def ensure_save_path():
+    """
+    Try to create and return a writable save path.
+    Preference order: SAVE_PATH, ALT_SAVE_PATH, cwd.
+    """
+    for path in (SAVE_PATH, ALT_SAVE_PATH):
+        try:
+            os.makedirs(path, exist_ok=True)
+            # test write permission by creating a temp file (then remove it)
+            test_file = os.path.join(path, ".rkdy_test_write")
+            with open(test_file, "w") as tf:
+                tf.write("ok")
+            os.remove(test_file)
+            return path
+        except Exception:
+            continue
+    # fallback to current working directory
+    return os.getcwd()
+
+FINAL_SAVE_PATH = ensure_save_path()
+
+# ----------------------------
+# Helper functions (original)
+# ----------------------------
 def print_colored(text: str, color: str) -> None:
     """Prints colored text."""
     colors: Dict[str, str] = {
@@ -126,13 +153,13 @@ def get_channel_list(
 def save_channel_list(
     base_url: str, channels_data: List[Dict], group_info: Dict, mac: str
 ) -> None:
-    """Saves the channel list to an M3U file."""
+    """Saves the channel list to an M3U file in FINAL_SAVE_PATH."""
     sanitized_url = re.sub(r"[\W_]+", "_", base_url)
     filename = f'{sanitized_url}_{datetime.now().strftime("%Y-%m-%d")}.m3u'
     count = 0
     try:
-        filepath = os.path.join(SAVE_PATH, filename)
-with open(filepath, "w", encoding="utf-8") as file:
+        filepath = os.path.join(FINAL_SAVE_PATH, filename)
+        with open(filepath, "w", encoding="utf-8") as file:
             file.write("#EXTM3U\n")
             for channel in channels_data:
                 group_id = channel.get("tv_genre_id", "0")
@@ -157,7 +184,8 @@ with open(filepath, "w", encoding="utf-8") as file:
                 file.write(f"{cmd_url}\n")
                 count += 1
         print_colored(f"\nTotal channels found: {count}", "green")
-        print_colored(f"Channel list saved to: {filename}", "blue")
+        print_colored(f"Channel list saved to: {filepath}", "blue")
+        print_colored("Thank you for using @rkdyiptv ❤️", "magenta")
     except IOError as e:
         print_colored(f"Error saving channel list file: {e}", "red")
 
