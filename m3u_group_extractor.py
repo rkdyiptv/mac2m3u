@@ -1,10 +1,28 @@
+#!/usr/bin/env python3
 import os
 import re
 from typing import Dict, List, Optional
-import os
 
+# ----------------------------
+# Save path configuration
+# ----------------------------
 SAVE_PATH = "/sdcard/rkdyiptv"
-os.makedirs(SAVE_PATH, exist_ok=True)
+ALT_SAVE_PATH = "/storage/emulated/0/rkdyiptv"
+
+def ensure_save_path():
+    for path in (SAVE_PATH, ALT_SAVE_PATH):
+        try:
+            os.makedirs(path, exist_ok=True)
+            test_file = os.path.join(path, ".rkdy_test_write")
+            with open(test_file, "w") as tf:
+                tf.write("ok")
+            os.remove(test_file)
+            return path
+        except Exception:
+            continue
+    return os.getcwd()
+
+FINAL_SAVE_PATH = ensure_save_path()
 
 def print_colored(text: str, color: str) -> None:
     """Prints colored text to the console."""
@@ -25,9 +43,7 @@ def sanitize_filename(name: str) -> str:
     Takes a string and returns a safe filename version, appending .m3u.
     Example: "USA: Sports (HD)" -> "USA_Sports_HD.m3u"
     """
-
     name = name.replace(" ", "_").replace(":", "-").replace("|", "-")
-
     name = re.sub(r"[^\w-]", "", name)
     return f"{name}.m3u"
 
@@ -130,31 +146,32 @@ def extract_groups_by_query(m3u_path: str, query: str, mode: str) -> None:
             output_filename = sanitize_filename(group_title)
             channel_count = len(channel_lines) // 2
             try:
-                filepath = os.path.join(SAVE_PATH, output_filename)
-with open(filepath, "w", encoding="utf-8") as f:
+                filepath = os.path.join(FINAL_SAVE_PATH, output_filename)
+                with open(filepath, "w", encoding="utf-8") as f:
                     f.write("#EXTM3U\n")
                     f.writelines(channel_lines)
                 print_colored(
-                    f"  - Created '{output_filename}' with {channel_count} channels.",
+                    f"  - Created '{filepath}' with {channel_count} channels.",
                     "blue",
                 )
             except IOError as e:
                 print_colored(
                     f"Error writing file for group '{group_title}': {e}", "red"
                 )
-
+        print_colored("Thank you for using @rkdyiptv ❤️", "magenta")
     else:
         output_filename = sanitize_filename(f"{query}_combined")
         print_colored("Creating combined file...", "green")
         try:
-            filepath = os.path.join(SAVE_PATH, output_filename)
-with open(filepath, "w", encoding="utf-8") as f:
+            filepath = os.path.join(FINAL_SAVE_PATH, output_filename)
+            with open(filepath, "w", encoding="utf-8") as f:
                 f.write("#EXTM3U\n")
                 f.writelines(channels_for_combined_file)
             print_colored(
-                f"  - Created '{output_filename}' with {total_channels_found} channels.",
+                f"  - Created '{filepath}' with {total_channels_found} channels.",
                 "blue",
             )
+            print_colored("Thank you for using @rkdyiptv ❤️", "magenta")
         except IOError as e:
             print_colored(f"Error writing combined file: {e}", "red")
 
